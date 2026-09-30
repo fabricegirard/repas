@@ -127,7 +127,7 @@ const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vTqmAYifXa_rrVb
 const SHEET_WRITE_URL="https://script.google.com/macros/s/AKfycbx01yml62gvryZ8YHsKKRpx6y3MVBMFPoQsWOwugJTwTzv9wTgbooRzDTYQk6QeI769/exec";
 const CACHE_KEY="carnet-repas-sheet-cache-v1";
 let sheetStatus="loading";
-let pendingMeal=null;
+let pendingMeal=null, pendingTimeout=null;
 
 const VIANDE=["steak","poulet","jambon","chorizo","saucisse","viande","carne"];
 const POISSON=["poisson","sardine","crevette","saumon"];
@@ -233,7 +233,7 @@ function render(){
   }
   $("count").textContent=list.length+(list.length>1?" repas":" repas")+(list.length!==meals.length?" sur "+meals.length:"");
   $("tagline").textContent=meals.length?meals.length+" idées pour ne plus se demander quoi manger":"Des idées pour ne plus se demander quoi manger";
-  const statusText={loading:"Chargement de la liste partagée…",ready:"Liste partagée depuis Google Sheets",empty:"La feuille est vide",offline:"Hors ligne — dernière liste partagée enregistrée",error:"Feuille inaccessible"};
+  const statusText={loading:"Chargement de la liste partagée…",ready:"",empty:"La feuille est vide",offline:"Hors ligne — dernière liste partagée enregistrée",error:"Feuille inaccessible"};
   $("sub").textContent=statusText[sheetStatus]||"";
   const ai=$("ai");
   if(ingFilter){ai.className="active-ing show";ai.innerHTML="";const b=document.createElement("button");b.className="pill";b.textContent="Ingrédient : "+ingFilter+"  ✕";b.onclick=()=>{ingFilter=null;render();};ai.appendChild(b);}
@@ -264,16 +264,24 @@ $("meal-form").addEventListener("submit",event=>{
   form.action=SHEET_WRITE_URL;
   $("save").disabled=true;$("save").textContent="Envoi…";
   form.submit();
+  clearTimeout(pendingTimeout);
+  pendingTimeout=setTimeout(()=>{
+    if(!pendingMeal)return;
+    pendingMeal=null;$("save").disabled=false;$("save").textContent="Valider";
+    toast("Aucune réponse de Google. Vérifie que tu es connecté avec un compte autorisé, puis réessaie.");
+  },20000);
 });
 window.addEventListener("message",event=>{
+  if(event.source!==$("sheet-submit-frame").contentWindow)return;
   if(event.origin!=="https://script.google.com"&&!event.origin.endsWith(".googleusercontent.com"))return;
   if(!event.data||event.data.source!=="repas-sheet")return;
+  clearTimeout(pendingTimeout);
   $("save").disabled=false;$("save").textContent="Valider";
   if(event.data.ok&&pendingMeal){
     meals.unshift(pendingMeal);pendingMeal=null;sheetStatus="ready";render();
     try{localStorage.setItem(CACHE_KEY,JSON.stringify(meals));}catch(e){}
     $("dlg").close();toast("Repas ajouté à la liste partagée 🎉");$("meal-form").reset();$("fe").value="🍽️";
-  }else toast(event.data.error||"Impossible d’ajouter le repas. Vérifie que tu as accès à la feuille.");
+  }else{pendingMeal=null;toast(event.data.error||"Impossible d’ajouter le repas. Vérifie que tu as accès à la feuille.");}
 });
 $("rand").onclick=()=>{
   const pool=visible().length?visible():meals;
