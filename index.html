@@ -82,7 +82,7 @@ button,input{touch-action:manipulation}
     <h1>Mon carnet de repas<small id="sub"></small></h1>
     <div class="actions">
       <button class="btn alt" id="rand">🎲 Idée au hasard</button>
-      <button class="btn" id="add">＋ Ajouter un repas</button>
+      <button class="btn" id="refresh">↻ Actualiser la liste</button>
     </div>
   </header>
 
@@ -97,71 +97,15 @@ button,input{touch-action:manipulation}
   <main class="grid" id="grid"></main>
 </div>
 
-<dialog id="dlg">
-  <h2>Nouveau repas</h2>
-  <div class="row">
-    <div><label for="fe">Emoji</label><input class="f" id="fe" value="🍽️" maxlength="4"></div>
-    <div><label for="fn">Nom</label><input class="f" id="fn" placeholder="Ex : Wok de crevettes"></div>
-  </div>
-  <label for="fi">Ingrédients</label>
-  <input class="f" id="fi" placeholder="Riz, carotte, crevette, poivron">
-  <p class="hint">Sépare les ingrédients par des virgules. La catégorie (viande, poisson, végé) est détectée toute seule.</p>
-  <div class="foot">
-    <button class="btn alt" id="cancel">Annuler</button>
-    <button class="btn" id="save">Enregistrer</button>
-  </div>
-</dialog>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
-// ---------- Données de départ (nom | emoji | ingrédients) ----------
-const SEED = `
-Tofu, pâtes et légumes|🍝|Tofu, Pâtes, Courgette, Poivrons
-Œuf sauce tomate|🍳|Sauce tomate, Œuf, Courgette, Poivron
-Riz au soja|🍚|Riz, Carotte, Émincé de soja, Poivron
-Patate douce et steak|🍠|Patate douce, Roquette, Tomate, Steak haché
-Pinsa jambon|🍕|Pinsa, Sauce tomate, Jambon, Poivron, Courgette, Mozzarella
-Poulet aubergine|🍗|Patate, Aubergine, Poulet, Poivron
-Poisson pané|🐟|Poisson pané, Carotte, Riz
-Gnocchi poulet|🥟|Gnocchi, Poulet, Poivron, Courgette
-Gnocchi steak haché|🥟|Gnocchi, Steak haché, Poivron, Épinards
-Gnocchi tomates séchées|🥟|Gnocchi, Tomate séchée, Épinards / Courgette, Poulet
-Brocoli sardine|🥦|Brocoli, Sardine / Carré frais, Patate
-Salade pois chiche betterave|🥗|Pois chiche, Betterave, Tomate
-Feuilleté jambon fromage|🥐|Feuilleté jambon fromage, Salade
-Pignons de poulet ratatouille|🍗|Pignons de poulet, Ratatouille
-Perles de blé sardine|🐟|Perles de blé, Carotte, Haricots verts, Sardine
-Nouilles poisson crevette|🍜|Nouilles, Carotte, Poisson, Crevette
-Curry de pois chiche|🍛|Curry de pois chiche, Épinards
-Toasts avocat & sardine|🥑|Toast avocat, Toast sardine / Carré frais
-Burger tenders végé|🍔|Burger, Tenders végé, Salade, Tomate, Oignon, Potatoes
-Pâtes fêta pois chiche|🍝|Pâtes, Tomate séchée, Pois chiche, Épinards, Fêta
-Chili con carne / sin carne|🌶️|Chili con carne / sin carne
-Pâtes sardine tomate|🍝|Pâtes, Sardine, Sauce tomate, Tomate, Carotte
-Orzo chorizo|🍲|Orzo, Courgette, Chorizo
-Nouilles crevette|🍜|Nouilles, Crevette, Poivrons, Carottes
-Lentilles tomate|🥘|Lentilles, Carotte, Épinards, Sauce tomate, Pois chiches / Poulet
-Pâtes pesto|🌿|Pâtes, Pesto, Carré frais, Courgette, Tomate, Poulet / Émincé de soja
-Lasagne soup|🍲|Lasagne soup
-Soupe & toasts sardine|🍞|Soupe / Toast, Sardine, Carré frais
-Crêpe salée|🥞|Crêpe salée, Jambon, Œuf, Épinards
-Lentilles corail coco|🥥|Lentilles corail, Lait de coco, Poulet / Émincé de soja, Courgette / Épinards
-Lentilles butternut|🎃|Lentilles, Butternut, Épinards, Poulet
-Lentilles tomates séchées|🥘|Lentilles, Tomate séchée, Courgette, Fêta
-Ravioli fêta|🥟|Ravioli, Tomate, Courgette / Épinards, Fêta
-Saucisse purée|🌭|Saucisse, Purée, Carotte, Patate
-Boulgour sardine|🐟|Boulgour, Brocoli, Poivron, Sardine
-Galettes de légumes|🥬|Galette de courgette / brocoli, Roquette
-Pâtes saumon brocoli|🍝|Pâtes, Brocoli, Saumon
-Boulettes du jour|🧆|Boulettes de viande / végétales, Pâtes / Riz / Patate, Brocoli / Haricots verts
-Poêlée de légumes|🍆|Poêlée de légumes (courgette, poivron, aubergine), Toast
-Pâtes douces brocoli|🥦|Pâtes douces, Brocoli, Poulet / Émincé de soja / Tofu
-`.trim().split("\n").map((l,i)=>{const [name,emoji,ing]=l.split("|");return{id:"s"+i,name,emoji,ing:ing.split(",").map(s=>s.trim())}});
-
 // ---------- Etat ----------
-let meals=SEED.slice(), filter="all", query="", ingFilter=null;
+let meals=[], filter="all", query="", ingFilter=null;
 const $=id=>document.getElementById(id);
-const KEY="carnet-repas-v1";
+const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vTqmAYifXa_rrVbNrSwUXEj-SOzrZUkQ6QI-vdvUtWSD48_NVS0V4p3vMQ8-sQ-gpMgPDlq7_FrKnXk/pub?gid=0&single=true&output=csv";
+const CACHE_KEY="carnet-repas-sheet-cache-v1";
+let sheetStatus="loading";
 
 const VIANDE=["steak","poulet","jambon","chorizo","saucisse","viande","carne"];
 const POISSON=["poisson","sardine","crevette","saumon"];
@@ -174,21 +118,58 @@ function cat(m){
 }
 const LABEL={viande:"Viande",poisson:"Poisson",vege:"Végé"};
 
-// ---------- Sauvegarde ----------
-function load(){
-  // localStorage est disponible dans Safari (y compris iOS/iPadOS). Le rendu
-  // initial ne dépend pas de sa disponibilité : les repas de départ sont déjà chargés.
-  try{
-    const saved=localStorage.getItem(KEY);
-    if(saved){
-      const parsed=JSON.parse(saved);
-      if(Array.isArray(parsed))meals=parsed;
-    }
-  }catch(e){/* stockage désactivé : la liste reste utilisable en mémoire */}
+// ---------- Lecture de la feuille Google ----------
+function parseCSV(text){
+  const rows=[];let row=[],cell="",quoted=false;
+  text=text.replace(/^\uFEFF/,"");
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(quoted){
+      if(ch==='"'&&text[i+1]==='"'){cell+='"';i++;}
+      else if(ch==='"')quoted=false;
+      else cell+=ch;
+    }else if(ch==='"')quoted=true;
+    else if(ch===","){row.push(cell);cell="";}
+    else if(ch==="\n"||ch==="\r"){
+      if(ch==="\r"&&text[i+1]==="\n")i++;
+      row.push(cell);cell="";
+      if(row.some(value=>value.trim()))rows.push(row);
+      row=[];
+    }else cell+=ch;
+  }
+  if(cell||row.length){row.push(cell);if(row.some(value=>value.trim()))rows.push(row);}
+  return rows;
 }
-function persist(){
-  try{localStorage.setItem(KEY,JSON.stringify(meals));}
-  catch(e){toast("Sauvegarde indisponible ici — la liste reste active pendant la session.");}
+function mealsFromCSV(text){
+  const rows=parseCSV(text);
+  if(!rows.length)return [];
+  const headers=rows[0].map(value=>norm(value.trim()));
+  const nameCol=headers.indexOf("nom"), emojiCol=headers.indexOf("emoji"), ingCol=headers.indexOf("ingredients");
+  if(nameCol<0||emojiCol<0||ingCol<0)throw new Error("Colonnes attendues : Nom, Emoji, Ingrédients");
+  return rows.slice(1).map((values,index)=>{
+    const name=(values[nameCol]||"").trim();
+    const ingredients=(values[ingCol]||"").split(/[;,]/).map(value=>value.trim()).filter(Boolean);
+    if(!name||!ingredients.length)return null;
+    return{id:"sheet-"+index+"-"+norm(name).replace(/[^a-z0-9]+/g,"-"),name,emoji:(values[emojiCol]||"🍽️").trim()||"🍽️",ing:ingredients};
+  }).filter(Boolean);
+}
+async function loadSheet(){
+  sheetStatus="loading";render();
+  try{
+    const response=await fetch(SHEET_URL,{cache:"no-store"});
+    if(!response.ok)throw new Error("Réponse Google Sheets : "+response.status);
+    const csv=await response.text();
+    const sharedMeals=mealsFromCSV(csv);
+    meals=sharedMeals;sheetStatus=sharedMeals.length?"ready":"empty";
+    try{localStorage.setItem(CACHE_KEY,JSON.stringify(meals));}catch(e){}
+  }catch(e){
+    try{
+      const cached=JSON.parse(localStorage.getItem(CACHE_KEY)||"null");
+      if(Array.isArray(cached)){meals=cached;sheetStatus="offline";}
+      else{meals=[];sheetStatus="error";}
+    }catch(error){meals=[];sheetStatus="error";}
+  }
+  render();
 }
 
 // ---------- Rendu ----------
@@ -217,17 +198,20 @@ function render(){
   list.forEach(m=>{
     const c=cat(m), el=document.createElement("article");
     el.className="card "+c;
-    el.innerHTML='<div class="top"><div class="emo"></div><div><h3></h3><span class="tag"></span></div></div><div class="chips"></div><button class="del" aria-label="Supprimer ce repas" title="Supprimer">×</button>';
+    el.innerHTML='<div class="top"><div class="emo"></div><div><h3></h3><span class="tag"></span></div></div><div class="chips"></div>';
     el.querySelector(".emo").textContent=m.emoji;
     el.querySelector("h3").textContent=m.name;
     el.querySelector(".tag").textContent=LABEL[c];
     chips(m,el.querySelector(".chips"));
-    el.querySelector(".del").onclick=()=>remove(m);
     g.appendChild(el);
   });
-  if(!list.length){g.innerHTML='<p class="empty">Aucun repas trouvé. Essaie un autre mot, ou ajoute-le avec le bouton ＋.</p>';}
+  if(!list.length){
+    const emptyText=sheetStatus==="loading"?"Chargement des repas…":sheetStatus==="empty"?"La feuille ne contient pas encore de repas. Ajoute-les dans Google Sheets puis actualise.":sheetStatus==="error"?"Impossible de charger la feuille. Vérifie ta connexion puis actualise.":query||ingFilter||filter!=="all"?"Aucun repas trouvé. Essaie un autre mot ou un autre filtre.":"La liste partagée ne contient aucun repas.";
+    g.innerHTML='<p class="empty"></p>';g.querySelector(".empty").textContent=emptyText;
+  }
   $("count").textContent=list.length+(list.length>1?" repas":" repas")+(list.length!==meals.length?" sur "+meals.length:"");
-  $("sub").textContent=meals.length+" idées pour ne plus se demander quoi manger";
+  const statusText={loading:"Chargement de la liste partagée…",ready:"Liste partagée depuis Google Sheets",empty:"La feuille est vide",offline:"Hors ligne — dernière liste partagée enregistrée",error:"Feuille inaccessible"};
+  $("sub").textContent=statusText[sheetStatus]||"";
   const ai=$("ai");
   if(ingFilter){ai.className="active-ing show";ai.innerHTML="";const b=document.createElement("button");b.className="pill";b.textContent="Ingrédient : "+ingFilter+"  ✕";b.onclick=()=>{ingFilter=null;render();};ai.appendChild(b);}
   else ai.className="active-ing";
@@ -244,13 +228,10 @@ function renderPills(){
 
 // ---------- Actions ----------
 function toast(t){const e=$("toast");e.textContent=t;e.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),2400);}
-function remove(m){
-  if(!confirm("Supprimer « "+m.name+" » ?"))return;
-  meals=meals.filter(x=>x.id!==m.id);persist();render();toast("Repas supprimé");
-}
 $("q").oninput=e=>{query=e.target.value;render();};
 $("rand").onclick=()=>{
   const pool=visible().length?visible():meals;
+  if(!pool.length){toast("La feuille ne contient aucun repas");return;}
   const m=pool[Math.floor(Math.random()*pool.length)];
   const p=$("pick");p.className="pick show";p.innerHTML='<div class="emo"></div><h2></h2><div class="chips"></div>';
   p.querySelector(".emo").textContent=m.emoji;
@@ -258,20 +239,11 @@ $("rand").onclick=()=>{
   m.ing.forEach(i=>{const s=document.createElement("span");s.className="chip";s.textContent=i;p.querySelector(".chips").appendChild(s);});
   p.scrollIntoView({behavior:"smooth",block:"nearest"});
 };
-$("add").onclick=()=>{$("fe").value="🍽️";$("fn").value="";$("fi").value="";$("dlg").showModal();$("fn").focus();};
-$("cancel").onclick=()=>$("dlg").close();
-$("save").onclick=()=>{
-  const name=$("fn").value.trim(), ing=$("fi").value.split(",").map(s=>s.trim()).filter(Boolean);
-  if(!name||!ing.length){toast("Il faut un nom et au moins un ingrédient");return;}
-  const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
-  meals.unshift({id:"u"+Date.now(),name,emoji:$("fe").value.trim()||"🍽️",ing:ing.map(cap)});
-  persist();$("dlg").close();render();toast("Repas ajouté 🎉");
-};
+$("refresh").onclick=()=>loadSheet();
 
-// Affiche immédiatement le contenu, puis remplace les données par la sauvegarde
-// locale si elle existe. Évite une page vide si le stockage iOS est indisponible.
+// Affiche la liste de secours puis remplace-la par la feuille si elle contient des repas.
 renderPills();render();
-load();render();
+loadSheet();
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 }
