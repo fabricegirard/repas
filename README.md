@@ -8,7 +8,7 @@ La feuille est publiée sur le Web pour permettre à la page GitHub Pages de la 
 
 ## Ajouter un repas
 
-Le bouton **Ajouter un repas** ouvre un formulaire intégré à la page. Les données sont envoyées au script Google Apps défini dans `SHEET_WRITE_URL` des deux fichiers HTML. Le script de déploiement est fourni dans `apps-script/Code.gs`. Déployez-le comme application Web en l’exécutant en tant qu’utilisateur qui accède à l’application, avec accès réservé aux comptes Google. Le script n’ajoute une ligne que si l’adresse Google connectée est propriétaire ou éditrice de la feuille ; ajoutez donc les quatre utilisateurs autorisés comme éditeurs de la feuille.
+Le bouton **Ajouter un repas** ouvre un formulaire intégré à la page. Les données sont envoyées au script Google Apps défini dans `SHEET_WRITE_URL` des deux fichiers HTML. Le script de déploiement est fourni dans `apps-script/Code.gs`. Déployez-le comme application Web en l’exécutant en tant qu’utilisateur qui accède à l’application, avec accès réservé aux comptes Google. Le script n’ajoute une ligne que si l’adresse Google connectée est propriétaire ou éditrice de la feuille ; ajoutez donc les quatre utilisateurs autorisés comme éditeurs de la feuille. Après toute modification du script, ouvrez **Déployer → Gérer les déploiements**, modifiez le déploiement existant en sélectionnant une **Nouvelle version**, puis déployez. Ouvrir l’URL dans un onglet affiche la page `doGet` et permet de vérifier que le compte est autorisé ; l’ajout d’un repas continue d’utiliser `doPost`.
 
 ## Publier sur GitHub Pages
 

@@ -1,6 +1,18 @@
 const SPREADSHEET_ID = "1-fpFRXBo3tTdz4hV4Th9SvY09aiIpMgb5H3LSXll1So";
 const SHEET_GID = 0;
 
+function doGet() {
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const activeEmail = String(Session.getActiveUser().getEmail() || "").toLowerCase();
+  const editorEmails = spreadsheet.getEditors().map(user => user.getEmail().toLowerCase());
+  const ownerEmail = spreadsheet.getOwner().getEmail().toLowerCase();
+  const authorized = activeEmail && (activeEmail === ownerEmail || editorEmails.includes(activeEmail));
+  const message = authorized
+    ? "Connexion autorisée. Vous pouvez fermer cet onglet et ajouter un repas dans le carnet."
+    : "Ce compte Google n’est pas autorisé à modifier la feuille. Connectez-vous avec l’un des quatre comptes autorisés.";
+  return HtmlService.createHtmlOutput("<!doctype html><meta charset=\"utf-8\"><title>Carnet de repas</title><p>" + message + "</p>");
+}
+
 function doPost(event) {
   try {
     const name = String(event.parameter.name || "").trim();
