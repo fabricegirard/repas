@@ -272,7 +272,6 @@ $("meal-form").addEventListener("submit",event=>{
   },20000);
 });
 window.addEventListener("message",event=>{
-  if(event.source!==$("sheet-submit-frame").contentWindow)return;
   if(event.origin!=="https://script.google.com"&&!event.origin.endsWith(".googleusercontent.com"))return;
   if(!event.data||event.data.source!=="repas-sheet")return;
   clearTimeout(pendingTimeout);
