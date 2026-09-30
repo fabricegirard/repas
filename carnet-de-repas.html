@@ -25,7 +25,8 @@ body{font-family:ui-rounded,"Avenir Next","Trebuchet MS",system-ui,sans-serif;ba
 header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:22px}
 h1{font-size:clamp(30px,6vw,46px);line-height:1.05;letter-spacing:-.02em;font-weight:800}
 h1 small{display:block;font-size:15px;font-weight:500;color:var(--muted);letter-spacing:0;margin-top:6px}
-.btn{font:inherit;font-weight:700;border:0;border-radius:999px;padding:11px 18px;cursor:pointer;background:var(--ink);color:#fff}
+h1 small.status{font-size:12px;margin-top:2px}
+.btn{display:inline-block;text-decoration:none;font:inherit;font-weight:700;border:0;border-radius:999px;padding:11px 18px;cursor:pointer;background:var(--ink);color:#fff}
 .btn.alt{background:#fff;color:var(--ink);border:2px solid var(--ink)}
 .btn:focus-visible,input:focus-visible,.pill:focus-visible,.chip:focus-visible{outline:3px solid #7B5CFF;outline-offset:2px}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
@@ -79,9 +80,10 @@ button,input{touch-action:manipulation}
 <body>
 <div class="wrap">
   <header>
-    <h1>Mon carnet de repas<small id="sub"></small></h1>
+    <h1>Mon carnet de repas<small id="tagline"></small><small class="status" id="sub"></small></h1>
     <div class="actions">
       <button class="btn alt" id="rand">🎲 Idée au hasard</button>
+      <button class="btn alt" id="add" type="button">＋ Ajouter un repas</button>
       <button class="btn" id="refresh">↻ Actualiser la liste</button>
     </div>
   </header>
@@ -97,6 +99,24 @@ button,input{touch-action:manipulation}
   <main class="grid" id="grid"></main>
 </div>
 
+<dialog id="dlg">
+  <form id="meal-form" method="post" target="sheet-submit-frame">
+    <h2>Ajouter un repas</h2>
+    <label for="fn">Nom du repas</label>
+    <input class="f" id="fn" name="name" maxlength="100" placeholder="Ex. : Wok de crevettes" required>
+    <div class="row">
+      <div><label for="fe">Emoji</label><input class="f" id="fe" name="emoji" value="🍽️" maxlength="8" required></div>
+    </div>
+    <label for="fi">Ingrédients</label>
+    <input class="f" id="fi" name="ingredients" maxlength="500" placeholder="Riz, carotte, crevette, poivron" required>
+    <p class="hint">Sépare les ingrédients par des virgules. Le repas sera ajouté à la liste partagée.</p>
+    <div class="foot">
+      <button class="btn alt" id="cancel" type="button">Annuler</button>
+      <button class="btn" id="save" type="submit">Valider</button>
+    </div>
+  </form>
+</dialog>
+<iframe name="sheet-submit-frame" title="Enregistrement du repas" hidden></iframe>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -104,8 +124,10 @@ button,input{touch-action:manipulation}
 let meals=[], filter="all", query="", ingFilter=null;
 const $=id=>document.getElementById(id);
 const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vTqmAYifXa_rrVbNrSwUXEj-SOzrZUkQ6QI-vdvUtWSD48_NVS0V4p3vMQ8-sQ-gpMgPDlq7_FrKnXk/pub?gid=0&single=true&output=csv";
+const SHEET_WRITE_URL="https://script.google.com/macros/s/AKfycbx01yml62gvryZ8YHsKKRpx6y3MVBMFPoQsWOwugJTwTzv9wTgbooRzDTYQk6QeI769/exec";
 const CACHE_KEY="carnet-repas-sheet-cache-v1";
 let sheetStatus="loading";
+let pendingMeal=null;
 
 const VIANDE=["steak","poulet","jambon","chorizo","saucisse","viande","carne"];
 const POISSON=["poisson","sardine","crevette","saumon"];
@@ -210,6 +232,7 @@ function render(){
     g.innerHTML='<p class="empty"></p>';g.querySelector(".empty").textContent=emptyText;
   }
   $("count").textContent=list.length+(list.length>1?" repas":" repas")+(list.length!==meals.length?" sur "+meals.length:"");
+  $("tagline").textContent=meals.length?meals.length+" idées pour ne plus se demander quoi manger":"Des idées pour ne plus se demander quoi manger";
   const statusText={loading:"Chargement de la liste partagée…",ready:"Liste partagée depuis Google Sheets",empty:"La feuille est vide",offline:"Hors ligne — dernière liste partagée enregistrée",error:"Feuille inaccessible"};
   $("sub").textContent=statusText[sheetStatus]||"";
   const ai=$("ai");
@@ -229,6 +252,29 @@ function renderPills(){
 // ---------- Actions ----------
 function toast(t){const e=$("toast");e.textContent=t;e.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),2400);}
 $("q").oninput=e=>{query=e.target.value;render();};
+$("add").onclick=()=>{$("meal-form").reset();$("fe").value="🍽️";$("dlg").showModal();$("fn").focus();};
+$("cancel").onclick=()=>$("dlg").close();
+$("meal-form").addEventListener("submit",event=>{
+  event.preventDefault();
+  if(!SHEET_WRITE_URL){toast("La connexion d’enregistrement doit encore être configurée.");return;}
+  const name=$("fn").value.trim(), emoji=$("fe").value.trim(), ingredients=$("fi").value.split(",").map(value=>value.trim()).filter(Boolean);
+  if(!name||!emoji||!ingredients.length){toast("Renseigne le nom, l’emoji et au moins un ingrédient.");return;}
+  pendingMeal={id:"pending-"+Date.now(),name,emoji,ing:ingredients};
+  const form=event.currentTarget;
+  form.action=SHEET_WRITE_URL;
+  $("save").disabled=true;$("save").textContent="Envoi…";
+  form.submit();
+});
+window.addEventListener("message",event=>{
+  if(event.origin!=="https://script.google.com"&&!event.origin.endsWith(".googleusercontent.com"))return;
+  if(!event.data||event.data.source!=="repas-sheet")return;
+  $("save").disabled=false;$("save").textContent="Valider";
+  if(event.data.ok&&pendingMeal){
+    meals.unshift(pendingMeal);pendingMeal=null;sheetStatus="ready";render();
+    try{localStorage.setItem(CACHE_KEY,JSON.stringify(meals));}catch(e){}
+    $("dlg").close();toast("Repas ajouté à la liste partagée 🎉");$("meal-form").reset();$("fe").value="🍽️";
+  }else toast(event.data.error||"Impossible d’ajouter le repas. Vérifie que tu as accès à la feuille.");
+});
 $("rand").onclick=()=>{
   const pool=visible().length?visible():meals;
   if(!pool.length){toast("La feuille ne contient aucun repas");return;}
