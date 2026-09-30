@@ -83,11 +83,7 @@ button,input{touch-action:manipulation}
     <h1>Mon carnet de repas<small id="tagline"></small><small class="status" id="sub"></small></h1>
     <div class="actions">
       <button class="btn alt" id="rand">🎲 Idée au hasard</button>
-<<<<<<< HEAD
-      <a class="btn alt" id="add" href="https://docs.google.com/spreadsheets/d/1-fpFRXBo3tTdz4hV4Th9SvY09aiIpMgb5H3LSXll1So/edit?usp=sharing" target="_blank" rel="noopener">＋ Ajouter un repas</a>
-=======
       <button class="btn alt" id="add" type="button">＋ Ajouter un repas</button>
->>>>>>> cc0a0cf667e67b360fa9d0387eca696d822e9931
       <button class="btn" id="refresh">↻ Actualiser la liste</button>
     </div>
   </header>
@@ -103,8 +99,6 @@ button,input{touch-action:manipulation}
   <main class="grid" id="grid"></main>
 </div>
 
-<<<<<<< HEAD
-=======
 <dialog id="dlg">
   <form id="meal-form" method="post" target="sheet-submit-frame">
     <h2>Ajouter un repas</h2>
@@ -123,7 +117,6 @@ button,input{touch-action:manipulation}
   </form>
 </dialog>
 <iframe name="sheet-submit-frame" title="Enregistrement du repas" hidden></iframe>
->>>>>>> cc0a0cf667e67b360fa9d0387eca696d822e9931
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -131,15 +124,10 @@ button,input{touch-action:manipulation}
 let meals=[], filter="all", query="", ingFilter=null;
 const $=id=>document.getElementById(id);
 const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vTqmAYifXa_rrVbNrSwUXEj-SOzrZUkQ6QI-vdvUtWSD48_NVS0V4p3vMQ8-sQ-gpMgPDlq7_FrKnXk/pub?gid=0&single=true&output=csv";
-<<<<<<< HEAD
-const CACHE_KEY="carnet-repas-sheet-cache-v1";
-let sheetStatus="loading";
-=======
 const SHEET_WRITE_URL="https://script.google.com/macros/s/AKfycbx01yml62gvryZ8YHsKKRpx6y3MVBMFPoQsWOwugJTwTzv9wTgbooRzDTYQk6QeI769/exec";
 const CACHE_KEY="carnet-repas-sheet-cache-v1";
 let sheetStatus="loading";
 let pendingMeal=null;
->>>>>>> cc0a0cf667e67b360fa9d0387eca696d822e9931
 
 const VIANDE=["steak","poulet","jambon","chorizo","saucisse","viande","carne"];
 const POISSON=["poisson","sardine","crevette","saumon"];
@@ -264,8 +252,6 @@ function renderPills(){
 // ---------- Actions ----------
 function toast(t){const e=$("toast");e.textContent=t;e.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),2400);}
 $("q").oninput=e=>{query=e.target.value;render();};
-<<<<<<< HEAD
-=======
 $("add").onclick=()=>{$("meal-form").reset();$("fe").value="🍽️";$("dlg").showModal();$("fn").focus();};
 $("cancel").onclick=()=>$("dlg").close();
 $("meal-form").addEventListener("submit",event=>{
@@ -289,7 +275,6 @@ window.addEventListener("message",event=>{
     $("dlg").close();toast("Repas ajouté à la liste partagée 🎉");$("meal-form").reset();$("fe").value="🍽️";
   }else toast(event.data.error||"Impossible d’ajouter le repas. Vérifie que tu as accès à la feuille.");
 });
->>>>>>> cc0a0cf667e67b360fa9d0387eca696d822e9931
 $("rand").onclick=()=>{
   const pool=visible().length?visible():meals;
   if(!pool.length){toast("La feuille ne contient aucun repas");return;}

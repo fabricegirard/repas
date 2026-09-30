@@ -2,13 +2,13 @@
 
 Page statique prête pour GitHub Pages. Le fichier d'entrée est `index.html`.
 
-<<<<<<< HEAD
-La liste des repas est lue depuis une feuille Google Sheets publiée au format CSV. Les colonnes attendues sont `Nom`, `Emoji` et `Ingrédients`. Les ingrédients d'une cellule peuvent être séparés par des virgules ou des points-virgules. **Ajouter un repas** ouvre la feuille pour la modifier ; après modification, utilisez **Actualiser la liste** pour recharger son contenu. Le fichier `repas-de-depart.csv` contient les 40 repas initiaux à importer dans la feuille.
-=======
 La liste des repas est lue depuis une feuille Google Sheets publiée au format CSV. Les colonnes attendues sont `Nom`, `Emoji` et `Ingrédients`. Les ingrédients d'une cellule peuvent être séparés par des virgules ou des points-virgules. Pour modifier la liste partagée, éditez la feuille Google Sheets ; le bouton **Actualiser la liste** recharge son contenu. Le fichier `repas-de-depart.csv` contient les 40 repas initiaux à importer dans la feuille.
->>>>>>> cc0a0cf667e67b360fa9d0387eca696d822e9931
 
 La feuille est publiée sur le Web pour permettre à la page GitHub Pages de la lire sans connexion Google. Son contenu est donc consultable publiquement. Si la feuille ne contient aucune recette, le carnet affiche une liste vide.
+
+## Ajouter un repas
+
+Le bouton **Ajouter un repas** ouvre un formulaire intégré à la page. Les données sont envoyées au script Google Apps défini dans `SHEET_WRITE_URL` des deux fichiers HTML. Le script de déploiement est fourni dans `apps-script/Code.gs`. Déployez-le comme application Web en l’exécutant en tant qu’utilisateur qui accède à l’application, avec accès réservé aux comptes Google. Le script n’ajoute une ligne que si l’adresse Google connectée est propriétaire ou éditrice de la feuille ; ajoutez donc les quatre utilisateurs autorisés comme éditeurs de la feuille.
 
 ## Publier sur GitHub Pages
 
