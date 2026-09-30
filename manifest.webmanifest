@@ -1,0 +1,19 @@
+{
+  "name": "Mon carnet de repas",
+  "short_name": "Repas",
+  "description": "Mes idées de repas, accessibles sur iPhone et iPad.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F5F7F3",
+  "theme_color": "#F5F7F3",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

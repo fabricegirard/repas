@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mon carnet de repas</title>
+<meta name="theme-color" content="#F5F7F3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Carnet repas">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon.svg">
+<style>
+:root{
+  --ink:#2A1B3D; --muted:#6E6480; --bg:#F5F7F3; --card:#FFFFFF; --line:#E2E6DD;
+  --viande:#D9482B; --viande-bg:#FDE9E3;
+  --poisson:#1F7A9E; --poisson-bg:#E0F1F7;
+  --vege:#4C9A2A; --vege-bg:#E6F3DD;
+  --chip:#EFF1EB;
+}
+*{box-sizing:border-box;margin:0}
+body{font-family:ui-rounded,"Avenir Next","Trebuchet MS",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45;padding:calc(20px + env(safe-area-inset-top)) 16px calc(80px + env(safe-area-inset-bottom))}
+.wrap{max-width:1000px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:22px}
+h1{font-size:clamp(30px,6vw,46px);line-height:1.05;letter-spacing:-.02em;font-weight:800}
+h1 small{display:block;font-size:15px;font-weight:500;color:var(--muted);letter-spacing:0;margin-top:6px}
+.btn{font:inherit;font-weight:700;border:0;border-radius:999px;padding:11px 18px;cursor:pointer;background:var(--ink);color:#fff}
+.btn.alt{background:#fff;color:var(--ink);border:2px solid var(--ink)}
+.btn:focus-visible,input:focus-visible,.pill:focus-visible,.chip:focus-visible{outline:3px solid #7B5CFF;outline-offset:2px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.pick{display:none;background:var(--ink);color:#fff;border-radius:22px;padding:20px;margin-bottom:20px}
+.pick.show{display:block;animation:pop .35s ease}
+@keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+.pick .emo{font-size:44px}
+.pick h2{font-size:24px;margin:4px 0 8px}
+.pick .chips .chip{background:rgba(255,255,255,.16);color:#fff}
+
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px}
+.search{flex:1 1 240px;font:inherit;padding:11px 16px;border-radius:999px;border:2px solid var(--line);background:#fff;color:var(--ink)}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font:inherit;font-weight:700;font-size:14px;padding:9px 14px;border-radius:999px;border:2px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+.pill[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.count{font-size:14px;color:var(--muted);margin:8px 2px 14px}
+.active-ing{display:none;margin-bottom:12px;font-size:14px}
+.active-ing.show{display:block}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:14px}
+.card{background:var(--card);border-radius:20px;padding:16px 16px 14px;border-left:8px solid var(--c);position:relative;box-shadow:0 1px 0 var(--line)}
+.card.viande{--c:var(--viande)} .card.poisson{--c:var(--poisson)} .card.vege{--c:var(--vege)}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.emo{font-size:32px;line-height:1;width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--bgc);flex:none}
+.viande .emo{--bgc:var(--viande-bg)} .poisson .emo{--bgc:var(--poisson-bg)} .vege .emo{--bgc:var(--vege-bg)}
+.card h3{font-size:18px;line-height:1.2}
+.tag{display:inline-block;font-size:12px;font-weight:700;margin-top:3px;color:var(--c)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:13px;border:0;background:var(--chip);color:var(--ink);border-radius:999px;padding:4px 10px;cursor:pointer}
+.chip.on{background:var(--ink);color:#fff}
+.del{position:absolute;top:8px;right:10px;border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer;opacity:.6;border-radius:8px;padding:2px 8px}
+.del:hover,.del:focus-visible{opacity:1;color:var(--viande)}
+.empty{grid-column:1/-1;text-align:center;padding:40px 10px;color:var(--muted)}
+
+dialog{border:0;border-radius:24px;padding:22px;width:min(440px,92vw);color:var(--ink);box-shadow:0 20px 60px rgba(42,27,61,.35)}
+dialog::backdrop{background:rgba(42,27,61,.45)}
+dialog h2{margin-bottom:14px}
+label{display:block;font-weight:700;font-size:14px;margin:12px 0 5px}
+input.f{width:100%;font:inherit;padding:11px 14px;border-radius:14px;border:2px solid var(--line);color:var(--ink)}
+.hint{font-size:12.5px;color:var(--muted);margin-top:4px}
+.row{display:flex;gap:10px}.row>div:first-child{width:90px}.row>div:last-child{flex:1}
+.foot{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s}
+.toast.show{opacity:1}
+button,input{touch-action:manipulation}
+@media (pointer:coarse){.btn,.pill{min-height:44px}.chip{min-height:36px;padding:7px 12px}.del{min-width:44px;min-height:44px;opacity:1}}
+@media (prefers-reduced-motion:reduce){.pick.show{animation:none}.toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Mon carnet de repas<small id="sub"></small></h1>
+    <div class="actions">
+      <button class="btn alt" id="rand">🎲 Idée au hasard</button>
+      <button class="btn" id="add">＋ Ajouter un repas</button>
+    </div>
+  </header>
+
+  <section class="pick" id="pick" aria-live="polite"></section>
+
+  <div class="tools">
+    <input class="search" id="q" type="search" placeholder="Chercher un repas ou un ingrédient…" aria-label="Rechercher">
+    <div class="pills" id="pills"></div>
+  </div>
+  <div class="active-ing" id="ai"></div>
+  <p class="count" id="count"></p>
+  <main class="grid" id="grid"></main>
+</div>
+
+<dialog id="dlg">
+  <h2>Nouveau repas</h2>
+  <div class="row">
+    <div><label for="fe">Emoji</label><input class="f" id="fe" value="🍽️" maxlength="4"></div>
+    <div><label for="fn">Nom</label><input class="f" id="fn" placeholder="Ex : Wok de crevettes"></div>
+  </div>
+  <label for="fi">Ingrédients</label>
+  <input class="f" id="fi" placeholder="Riz, carotte, crevette, poivron">
+  <p class="hint">Sépare les ingrédients par des virgules. La catégorie (viande, poisson, végé) est détectée toute seule.</p>
+  <div class="foot">
+    <button class="btn alt" id="cancel">Annuler</button>
+    <button class="btn" id="save">Enregistrer</button>
+  </div>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+// ---------- Données de départ (nom | emoji | ingrédients) ----------
+const SEED = `
+Tofu, pâtes et légumes|🍝|Tofu, Pâtes, Courgette, Poivrons
+Œuf sauce tomate|🍳|Sauce tomate, Œuf, Courgette, Poivron
+Riz au soja|🍚|Riz, Carotte, Émincé de soja, Poivron
+Patate douce et steak|🍠|Patate douce, Roquette, Tomate, Steak haché
+Pinsa jambon|🍕|Pinsa, Sauce tomate, Jambon, Poivron, Courgette, Mozzarella
+Poulet aubergine|🍗|Patate, Aubergine, Poulet, Poivron
+Poisson pané|🐟|Poisson pané, Carotte, Riz
+Gnocchi poulet|🥟|Gnocchi, Poulet, Poivron, Courgette
+Gnocchi steak haché|🥟|Gnocchi, Steak haché, Poivron, Épinards
+Gnocchi tomates séchées|🥟|Gnocchi, Tomate séchée, Épinards / Courgette, Poulet
+Brocoli sardine|🥦|Brocoli, Sardine / Carré frais, Patate
+Salade pois chiche betterave|🥗|Pois chiche, Betterave, Tomate
+Feuilleté jambon fromage|🥐|Feuilleté jambon fromage, Salade
+Pignons de poulet ratatouille|🍗|Pignons de poulet, Ratatouille
+Perles de blé sardine|🐟|Perles de blé, Carotte, Haricots verts, Sardine
+Nouilles poisson crevette|🍜|Nouilles, Carotte, Poisson, Crevette
+Curry de pois chiche|🍛|Curry de pois chiche, Épinards
+Toasts avocat & sardine|🥑|Toast avocat, Toast sardine / Carré frais
+Burger tenders végé|🍔|Burger, Tenders végé, Salade, Tomate, Oignon, Potatoes
+Pâtes fêta pois chiche|🍝|Pâtes, Tomate séchée, Pois chiche, Épinards, Fêta
+Chili con carne / sin carne|🌶️|Chili con carne / sin carne
+Pâtes sardine tomate|🍝|Pâtes, Sardine, Sauce tomate, Tomate, Carotte
+Orzo chorizo|🍲|Orzo, Courgette, Chorizo
+Nouilles crevette|🍜|Nouilles, Crevette, Poivrons, Carottes
+Lentilles tomate|🥘|Lentilles, Carotte, Épinards, Sauce tomate, Pois chiches / Poulet
+Pâtes pesto|🌿|Pâtes, Pesto, Carré frais, Courgette, Tomate, Poulet / Émincé de soja
+Lasagne soup|🍲|Lasagne soup
+Soupe & toasts sardine|🍞|Soupe / Toast, Sardine, Carré frais
+Crêpe salée|🥞|Crêpe salée, Jambon, Œuf, Épinards
+Lentilles corail coco|🥥|Lentilles corail, Lait de coco, Poulet / Émincé de soja, Courgette / Épinards
+Lentilles butternut|🎃|Lentilles, Butternut, Épinards, Poulet
+Lentilles tomates séchées|🥘|Lentilles, Tomate séchée, Courgette, Fêta
+Ravioli fêta|🥟|Ravioli, Tomate, Courgette / Épinards, Fêta
+Saucisse purée|🌭|Saucisse, Purée, Carotte, Patate
+Boulgour sardine|🐟|Boulgour, Brocoli, Poivron, Sardine
+Galettes de légumes|🥬|Galette de courgette / brocoli, Roquette
+Pâtes saumon brocoli|🍝|Pâtes, Brocoli, Saumon
+Boulettes du jour|🧆|Boulettes de viande / végétales, Pâtes / Riz / Patate, Brocoli / Haricots verts
+Poêlée de légumes|🍆|Poêlée de légumes (courgette, poivron, aubergine), Toast
+Pâtes douces brocoli|🥦|Pâtes douces, Brocoli, Poulet / Émincé de soja / Tofu
+`.trim().split("\n").map((l,i)=>{const [name,emoji,ing]=l.split("|");return{id:"s"+i,name,emoji,ing:ing.split(",").map(s=>s.trim())}});
+
+// ---------- Etat ----------
+let meals=SEED.slice(), filter="all", query="", ingFilter=null;
+const $=id=>document.getElementById(id);
+const KEY="carnet-repas-v1";
+
+const VIANDE=["steak","poulet","jambon","chorizo","saucisse","viande","carne"];
+const POISSON=["poisson","sardine","crevette","saumon"];
+const norm=s=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+function cat(m){
+  const t=norm(m.ing.join(" ")+" "+m.name);
+  if(VIANDE.some(k=>t.includes(k)))return "viande";
+  if(POISSON.some(k=>t.includes(k)))return "poisson";
+  return "vege";
+}
+const LABEL={viande:"Viande",poisson:"Poisson",vege:"Végé"};
+
+// ---------- Sauvegarde ----------
+function load(){
+  // localStorage est disponible dans Safari (y compris iOS/iPadOS). Le rendu
+  // initial ne dépend pas de sa disponibilité : les repas de départ sont déjà chargés.
+  try{
+    const saved=localStorage.getItem(KEY);
+    if(saved){
+      const parsed=JSON.parse(saved);
+      if(Array.isArray(parsed))meals=parsed;
+    }
+  }catch(e){/* stockage désactivé : la liste reste utilisable en mémoire */}
+}
+function persist(){
+  try{localStorage.setItem(KEY,JSON.stringify(meals));}
+  catch(e){toast("Sauvegarde indisponible ici — la liste reste active pendant la session.");}
+}
+
+// ---------- Rendu ----------
+function chips(m,container){
+  m.ing.forEach(i=>{
+    const b=document.createElement("button");
+    b.className="chip"+(ingFilter===i?" on":"");
+    b.textContent=i;
+    b.title="Voir tous les repas avec cet ingrédient";
+    b.onclick=()=>{ingFilter=(ingFilter===i?null:i);render();window.scrollTo({top:0,behavior:"smooth"});};
+    container.appendChild(b);
+  });
+}
+function visible(){
+  const q=norm(query.trim());
+  return meals.filter(m=>{
+    if(filter!=="all"&&cat(m)!==filter)return false;
+    if(ingFilter&&!m.ing.includes(ingFilter))return false;
+    if(q&&!norm(m.name+" "+m.ing.join(" ")).includes(q))return false;
+    return true;
+  });
+}
+function render(){
+  const list=visible(), g=$("grid");
+  g.innerHTML="";
+  list.forEach(m=>{
+    const c=cat(m), el=document.createElement("article");
+    el.className="card "+c;
+    el.innerHTML='<div class="top"><div class="emo"></div><div><h3></h3><span class="tag"></span></div></div><div class="chips"></div><button class="del" aria-label="Supprimer ce repas" title="Supprimer">×</button>';
+    el.querySelector(".emo").textContent=m.emoji;
+    el.querySelector("h3").textContent=m.name;
+    el.querySelector(".tag").textContent=LABEL[c];
+    chips(m,el.querySelector(".chips"));
+    el.querySelector(".del").onclick=()=>remove(m);
+    g.appendChild(el);
+  });
+  if(!list.length){g.innerHTML='<p class="empty">Aucun repas trouvé. Essaie un autre mot, ou ajoute-le avec le bouton ＋.</p>';}
+  $("count").textContent=list.length+(list.length>1?" repas":" repas")+(list.length!==meals.length?" sur "+meals.length:"");
+  $("sub").textContent=meals.length+" idées pour ne plus se demander quoi manger";
+  const ai=$("ai");
+  if(ingFilter){ai.className="active-ing show";ai.innerHTML="";const b=document.createElement("button");b.className="pill";b.textContent="Ingrédient : "+ingFilter+"  ✕";b.onclick=()=>{ingFilter=null;render();};ai.appendChild(b);}
+  else ai.className="active-ing";
+}
+function renderPills(){
+  const p=$("pills");p.innerHTML="";
+  [["all","Tous"],["viande","🥩 Viande"],["poisson","🐟 Poisson"],["vege","🌱 Végé"]].forEach(([k,l])=>{
+    const b=document.createElement("button");b.className="pill";b.textContent=l;
+    b.setAttribute("aria-pressed",filter===k);
+    b.onclick=()=>{filter=k;renderPills();render();};
+    p.appendChild(b);
+  });
+}
+
+// ---------- Actions ----------
+function toast(t){const e=$("toast");e.textContent=t;e.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),2400);}
+function remove(m){
+  if(!confirm("Supprimer « "+m.name+" » ?"))return;
+  meals=meals.filter(x=>x.id!==m.id);persist();render();toast("Repas supprimé");
+}
+$("q").oninput=e=>{query=e.target.value;render();};
+$("rand").onclick=()=>{
+  const pool=visible().length?visible():meals;
+  const m=pool[Math.floor(Math.random()*pool.length)];
+  const p=$("pick");p.className="pick show";p.innerHTML='<div class="emo"></div><h2></h2><div class="chips"></div>';
+  p.querySelector(".emo").textContent=m.emoji;
+  p.querySelector("h2").textContent=m.name;
+  m.ing.forEach(i=>{const s=document.createElement("span");s.className="chip";s.textContent=i;p.querySelector(".chips").appendChild(s);});
+  p.scrollIntoView({behavior:"smooth",block:"nearest"});
+};
+$("add").onclick=()=>{$("fe").value="🍽️";$("fn").value="";$("fi").value="";$("dlg").showModal();$("fn").focus();};
+$("cancel").onclick=()=>$("dlg").close();
+$("save").onclick=()=>{
+  const name=$("fn").value.trim(), ing=$("fi").value.split(",").map(s=>s.trim()).filter(Boolean);
+  if(!name||!ing.length){toast("Il faut un nom et au moins un ingrédient");return;}
+  const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+  meals.unshift({id:"u"+Date.now(),name,emoji:$("fe").value.trim()||"🍽️",ing:ing.map(cap)});
+  persist();$("dlg").close();render();toast("Repas ajouté 🎉");
+};
+
+// Affiche immédiatement le contenu, puis remplace les données par la sauvegarde
+// locale si elle existe. Évite une page vide si le stockage iOS est indisponible.
+renderPills();render();
+load();render();
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+}
+</script>
+</body>
+</html>
