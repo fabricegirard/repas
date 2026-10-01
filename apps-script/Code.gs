@@ -1,5 +1,6 @@
 const SPREADSHEET_ID = "1-fpFRXBo3tTdz4hV4Th9SvY09aiIpMgb5H3LSXll1So";
 const SHEET_GID = 0;
+const APP_RETURN_URL = "https://fabricegirard.github.io/repas/";
 
 function doGet() {
   const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -14,8 +15,12 @@ function doGet() {
 }
 
 function doPost(event) {
+  let returnUrl = APP_RETURN_URL;
+  let requestId = "";
   try {
     const params = event && event.parameter ? event.parameter : {};
+    requestId = String(params.requestId || "").slice(0, 80);
+    returnUrl = safeReturnUrl_(params.returnUrl);
     // La web app doit être déployée pour s'exécuter comme l'utilisateur connecté.
     const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
     const activeEmail = String(Session.getActiveUser().getEmail() || "").toLowerCase();
@@ -48,7 +53,7 @@ function doPost(event) {
         }
         lock.releaseLock();
       }
-      return reply_({ ok: true, healthcheck: true });
+      return reply_({ ok: true, healthcheck: true }, returnUrl, requestId);
     }
 
     const name = String(params.name || "").trim();
@@ -67,9 +72,9 @@ function doPost(event) {
     } finally {
       lock.releaseLock();
     }
-    return reply_({ ok: true });
+    return reply_({ ok: true }, returnUrl, requestId);
   } catch (error) {
-    return reply_({ ok: false, error: error.message || "Erreur lors de l'enregistrement." });
+    return reply_({ ok: false, error: error.message || "Erreur lors de l'enregistrement." }, returnUrl, requestId);
   }
 }
 
@@ -77,9 +82,19 @@ function safeCell_(value) {
   return /^[=+@\-]/.test(value) ? "'" + value : value;
 }
 
-function reply_(payload) {
-  const serialized = JSON.stringify({ source: "repas-sheet", ...payload }).replace(/</g, "\\u003c");
+function safeReturnUrl_(candidate) {
+  const value = String(candidate || APP_RETURN_URL);
+  if (!/^https:\/\/fabricegirard\.github\.io\/repas\/?$/.test(value)) {
+    throw new Error("Adresse de retour du carnet invalide.");
+  }
+  return APP_RETURN_URL;
+}
+
+function reply_(payload, returnUrl, requestId) {
+  const message = { source: "repas-sheet", requestId, ...payload };
+  const target = returnUrl + "#sheet-result=" + encodeURIComponent(JSON.stringify(message));
+  const serialized = JSON.stringify(target).replace(/</g, "\\u003c");
   return HtmlService.createHtmlOutput(
-    "<!doctype html><meta charset=\"utf-8\"><script>(function(){const message=" + serialized + ";let frame=window;for(let i=0;i<8;i++){if(frame===frame.parent)break;frame=frame.parent;frame.postMessage(message,'*');}})();</script>"
+    "<!doctype html><meta charset=\"utf-8\"><script>window.location.replace(" + serialized + ");</script>"
   );
 }

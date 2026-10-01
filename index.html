@@ -103,6 +103,8 @@ button,input{touch-action:manipulation}
 <dialog id="dlg">
   <form id="meal-form" method="post" target="sheet-submit-frame">
     <input id="form-action" name="action" type="hidden" value="">
+    <input id="form-request-id" name="requestId" type="hidden" value="">
+    <input id="form-return-url" name="returnUrl" type="hidden" value="">
     <h2>Ajouter un repas</h2>
     <label for="fn">Nom du repas</label>
     <input class="f" id="fn" name="name" maxlength="100" placeholder="Ex. : Wok de crevettes" required>
@@ -119,7 +121,7 @@ button,input{touch-action:manipulation}
     </div>
   </form>
 </dialog>
-<iframe name="sheet-submit-frame" title="Enregistrement du repas" hidden></iframe>
+<iframe id="sheet-submit-frame" name="sheet-submit-frame" title="Enregistrement du repas" hidden></iframe>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -130,7 +132,7 @@ const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vTqmAYifXa_rrVb
 const SHEET_WRITE_URL="https://script.google.com/macros/s/AKfycbx01yml62gvryZ8YHsKKRpx6y3MVBMFPoQsWOwugJTwTzv9wTgbooRzDTYQk6QeI769/exec";
 const CACHE_KEY="carnet-repas-sheet-cache-v1";
 let sheetStatus="loading";
-let pendingMeal=null, pendingTimeout=null, pendingAction="";
+let pendingMeal=null, pendingTimeout=null, pendingAction="", pendingRequestId="";
 
 const VIANDE=["steak","poulet","jambon","chorizo","saucisse","viande","carne"];
 const POISSON=["poisson","sardine","crevette","saumon"];
@@ -267,10 +269,15 @@ function startPendingTimeout(action){
     toast("Aucune réponse de Google. Vérifie le déploiement Apps Script et le compte Google connecté.");
   },20000);
 }
+function beginSheetRequest(action){
+  pendingAction=action;pendingRequestId=String(Date.now())+Math.random().toString(36).slice(2);
+  $("form-request-id").value=pendingRequestId;
+  $("form-return-url").value=location.origin+location.pathname;
+  $("form-action").value=action==="healthcheck"?"healthcheck":"";
+}
 $("connection-check").onclick=()=>{
   if(!SHEET_WRITE_URL){toast("La connexion d’enregistrement doit encore être configurée.");return;}
-  const form=$("meal-form");pendingMeal=null;pendingAction="healthcheck";
-  $("form-action").value="healthcheck";form.action=SHEET_WRITE_URL;
+  const form=$("meal-form");pendingMeal=null;beginSheetRequest("healthcheck");form.action=SHEET_WRITE_URL;
   $("save").disabled=true;
   $("connection-check").disabled=true;$("connection-check").textContent="Test…";
   form.submit();startPendingTimeout("healthcheck");
@@ -281,7 +288,7 @@ $("meal-form").addEventListener("submit",event=>{
   const name=$("fn").value.trim(), emoji=$("fe").value.trim(), ingredients=$("fi").value.split(",").map(value=>value.trim()).filter(Boolean);
   if(!name||!emoji||!ingredients.length){toast("Renseigne le nom, l’emoji et au moins un ingrédient.");return;}
   pendingMeal={id:"pending-"+Date.now(),name,emoji,ing:ingredients};
-  pendingAction="add";$("form-action").value="";
+  beginSheetRequest("add");
   const form=event.currentTarget;
   form.action=SHEET_WRITE_URL;
   $("connection-check").disabled=true;
@@ -289,32 +296,32 @@ $("meal-form").addEventListener("submit",event=>{
   form.submit();
   startPendingTimeout("add");
 });
-window.addEventListener("message",event=>{
-  if(!event.data||event.data.source!=="repas-sheet")return;
-  if(!pendingAction)return;
-  let senderHost="";try{senderHost=new URL(event.origin).hostname;}catch(e){}
-  if(event.origin!=="https://script.google.com"&&senderHost!=="googleusercontent.com"&&!senderHost.endsWith(".googleusercontent.com")){
-    clearTimeout(pendingTimeout);pendingAction="";pendingMeal=null;
-    $("save").disabled=false;$("save").textContent="Valider";
-    $("connection-check").disabled=false;$("connection-check").textContent="Tester la connexion";
-    toast("Google a répondu depuis un domaine non reconnu : "+senderHost);
-    return;
-  }
+function handleSheetResponse(data){
+  if(!data||data.source!=="repas-sheet"||data.requestId!==pendingRequestId||!pendingAction)return;
   clearTimeout(pendingTimeout);
   $("save").disabled=false;$("save").textContent="Valider";
   $("connection-check").disabled=false;$("connection-check").textContent="Tester la connexion";
   if(pendingAction==="healthcheck"){
     pendingAction="";$("connection-check").disabled=false;$("connection-check").textContent="Tester la connexion";
-    if(event.data.ok&&event.data.healthcheck)toast("Connexion et écriture vérifiées. Aucun repas de test conservé.");
-    else toast(event.data.error||"Le test n’a pas abouti. Redéploie la dernière version Apps Script.");
+    if(data.ok&&data.healthcheck)toast("Connexion et écriture vérifiées. Aucun repas de test conservé.");
+    else toast(data.error||"Le test n’a pas abouti. Redéploie la dernière version Apps Script.");
     return;
   }
   pendingAction="";
-  if(event.data.ok&&pendingMeal){
+  if(data.ok&&pendingMeal){
     meals.unshift(pendingMeal);pendingMeal=null;sheetStatus="ready";render();
     try{localStorage.setItem(CACHE_KEY,JSON.stringify(meals));}catch(e){}
     $("dlg").close();toast("Repas ajouté à la liste partagée 🎉");$("meal-form").reset();$("fe").value="🍽️";
-  }else{pendingMeal=null;toast(event.data.error||"Impossible d’ajouter le repas. Vérifie que tu as accès à la feuille.");}
+  }else{pendingMeal=null;toast(data.error||"Impossible d’ajouter le repas. Vérifie que tu as accès à la feuille.");}
+}
+window.addEventListener("message",event=>handleSheetResponse(event.data));
+$("sheet-submit-frame").addEventListener("load",()=>{
+  try{
+    const responseUrl=new URL($("sheet-submit-frame").contentWindow.location.href);
+    if(responseUrl.origin!==location.origin||!responseUrl.hash.startsWith("#sheet-result="))return;
+    const data=JSON.parse(decodeURIComponent(responseUrl.hash.slice("#sheet-result=".length)));
+    handleSheetResponse(data);
+  }catch(e){}
 });
 $("rand").onclick=()=>{
   const pool=visible().length?visible():meals;
