@@ -18,4 +18,4 @@ Le bouton **Ajouter un repas** ouvre un formulaire intégré à la page. Les don
 4. Une fois le déploiement terminé, ouvrez l'adresse Pages fournie par GitHub sur l'iPhone ou l'iPad.
 5. Dans Safari, touchez **Partager → Sur l’écran d’accueil**.
 
-Le site publié est accessible à toute personne disposant de son adresse. La feuille fournit la liste partagée entre les appareils ; une connexion Internet est nécessaire pour charger les dernières modifications. La dernière liste récupérée reste disponible hors ligne sur chaque appareil.
+Le site publié est accessible à toute personne disposant de son adresse. La feuille fournit la liste partagée entre les appareils ; une connexion Internet est nécessaire pour charger les dernières modifications. La dernière liste récupérée reste disponible hors ligne sur chaque appareil. Le bouton **Tester la connexion** du formulaire vérifie l’accès à la feuille, le droit d’écriture et le retour du script. Il écrit puis supprime immédiatement une ligne temporaire.

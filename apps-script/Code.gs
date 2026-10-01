@@ -15,17 +15,10 @@ function doGet() {
 
 function doPost(event) {
   try {
-    const name = String(event.parameter.name || "").trim();
-    const emoji = String(event.parameter.emoji || "").trim();
-    const ingredients = String(event.parameter.ingredients || "").trim();
-
-    if (!name || name.length > 100) throw new Error("Le nom doit contenir entre 1 et 100 caractères.");
-    if (!emoji || emoji.length > 8) throw new Error("Renseigne un emoji valide.");
-    if (!ingredients || ingredients.length > 500) throw new Error("Renseigne les ingrédients (500 caractères maximum).");
-
+    const params = event && event.parameter ? event.parameter : {};
     // La web app doit être déployée pour s'exécuter comme l'utilisateur connecté.
     const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const activeEmail = Session.getActiveUser().getEmail().toLowerCase();
+    const activeEmail = String(Session.getActiveUser().getEmail() || "").toLowerCase();
     const editorEmails = spreadsheet.getEditors().map(user => user.getEmail().toLowerCase());
     const ownerEmail = spreadsheet.getOwner().getEmail().toLowerCase();
     if (!activeEmail || (activeEmail !== ownerEmail && !editorEmails.includes(activeEmail))) {
@@ -40,9 +33,40 @@ function doPost(event) {
       throw new Error("Les colonnes doivent être Nom, Emoji, Ingrédients.");
     }
 
+    // Exerce le même accès en écriture que l'ajout, puis retire aussitôt la ligne de test.
+    if (params.action === "healthcheck") {
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      let testRow = 0;
+      try {
+        sheet.appendRow(["__TEST_CONNEXION_REPAS__", "🧪", "Ligne temporaire de diagnostic"]);
+        testRow = sheet.getLastRow();
+        sheet.deleteRow(testRow);
+      } finally {
+        if (testRow && sheet.getLastRow() >= testRow && sheet.getRange(testRow, 1).getValue() === "__TEST_CONNEXION_REPAS__") {
+          sheet.deleteRow(testRow);
+        }
+        lock.releaseLock();
+      }
+      return reply_({ ok: true, healthcheck: true });
+    }
+
+    const name = String(params.name || "").trim();
+    const emoji = String(params.emoji || "").trim();
+    const ingredients = String(params.ingredients || "").trim();
+    if (!name || name.length > 100) throw new Error("Le nom doit contenir entre 1 et 100 caractères.");
+    if (!emoji || emoji.length > 8) throw new Error("Renseigne un emoji valide.");
+    if (!ingredients || ingredients.length > 500) throw new Error("Renseigne les ingrédients (500 caractères maximum).");
+
     const ingredientList = ingredients.split(/[;,]/).map(value => value.trim()).filter(Boolean);
     if (!ingredientList.length) throw new Error("Ajoute au moins un ingrédient.");
-    sheet.appendRow([safeCell_(name), safeCell_(emoji), safeCell_(ingredientList.join(", "))]);
+    const lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    try {
+      sheet.appendRow([safeCell_(name), safeCell_(emoji), safeCell_(ingredientList.join(", "))]);
+    } finally {
+      lock.releaseLock();
+    }
     return reply_({ ok: true });
   } catch (error) {
     return reply_({ ok: false, error: error.message || "Erreur lors de l'enregistrement." });
