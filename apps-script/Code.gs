@@ -80,6 +80,6 @@ function safeCell_(value) {
 function reply_(payload) {
   const serialized = JSON.stringify({ source: "repas-sheet", ...payload }).replace(/</g, "\\u003c");
   return HtmlService.createHtmlOutput(
-    "<!doctype html><meta charset=\"utf-8\"><script>window.top.postMessage(" + serialized + ", '*');</script>"
+    "<!doctype html><meta charset=\"utf-8\"><script>(function(){const message=" + serialized + ";let frame=window;for(let i=0;i<8;i++){if(frame===frame.parent)break;frame=frame.parent;frame.postMessage(message,'*');}})();</script>"
   );
 }
