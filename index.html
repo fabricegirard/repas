@@ -290,9 +290,16 @@ $("meal-form").addEventListener("submit",event=>{
   startPendingTimeout("add");
 });
 window.addEventListener("message",event=>{
-  if(event.origin!=="https://script.google.com"&&!event.origin.endsWith(".googleusercontent.com"))return;
   if(!event.data||event.data.source!=="repas-sheet")return;
   if(!pendingAction)return;
+  let senderHost="";try{senderHost=new URL(event.origin).hostname;}catch(e){}
+  if(event.origin!=="https://script.google.com"&&senderHost!=="googleusercontent.com"&&!senderHost.endsWith(".googleusercontent.com")){
+    clearTimeout(pendingTimeout);pendingAction="";pendingMeal=null;
+    $("save").disabled=false;$("save").textContent="Valider";
+    $("connection-check").disabled=false;$("connection-check").textContent="Tester la connexion";
+    toast("Google a répondu depuis un domaine non reconnu : "+senderHost);
+    return;
+  }
   clearTimeout(pendingTimeout);
   $("save").disabled=false;$("save").textContent="Valider";
   $("connection-check").disabled=false;$("connection-check").textContent="Tester la connexion";
