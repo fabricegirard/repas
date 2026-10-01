@@ -183,7 +183,8 @@ function mealsFromCSV(text){
 async function loadSheet(){
   sheetStatus="loading";render();
   try{
-    const response=await fetch(SHEET_URL,{cache:"no-store"});
+    const separator=SHEET_URL.includes("?")?"&":"?";
+    const response=await fetch(SHEET_URL+separator+"_="+Date.now(),{cache:"no-store"});
     if(!response.ok)throw new Error("Réponse Google Sheets : "+response.status);
     const csv=await response.text();
     const sharedMeals=mealsFromCSV(csv);

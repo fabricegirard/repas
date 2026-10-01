@@ -1,4 +1,4 @@
-const CACHE = "carnet-repas-v8";
+const CACHE = "carnet-repas-v9";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", event => {
