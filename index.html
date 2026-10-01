@@ -132,7 +132,7 @@ const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vTqmAYifXa_rrVb
 const SHEET_WRITE_URL="https://script.google.com/macros/s/AKfycbx01yml62gvryZ8YHsKKRpx6y3MVBMFPoQsWOwugJTwTzv9wTgbooRzDTYQk6QeI769/exec";
 const CACHE_KEY="carnet-repas-sheet-cache-v1";
 let sheetStatus="loading";
-let pendingMeal=null, pendingTimeout=null, pendingAction="", pendingRequestId="";
+let pendingMeal=null, pendingTimeout=null, pendingAction="", pendingRequestId="", pendingBaselineCount=0, checkingSavedMeal=false;
 
 const VIANDE=["steak","poulet","jambon","chorizo","saucisse","viande","carne"];
 const POISSON=["poisson","sardine","crevette","saumon"];
@@ -275,6 +275,39 @@ function beginSheetRequest(action){
   $("form-return-url").value=location.origin+location.pathname;
   $("form-action").value=action==="healthcheck"?"healthcheck":"";
 }
+function sameMeal(a,b){
+  const ingredients=values=>values.map(value=>norm(value.trim())).filter(Boolean).sort().join("|");
+  return norm(a.name.trim())===norm(b.name.trim())&&a.emoji.trim()===b.emoji.trim()&&ingredients(a.ing)===ingredients(b.ing);
+}
+function finishSavedMeal(){
+  clearTimeout(pendingTimeout);pendingAction="";pendingRequestId="";pendingMeal=null;checkingSavedMeal=false;
+  $("save").disabled=false;$("save").textContent="Valider";
+  $("connection-check").disabled=false;$("connection-check").textContent="Tester la connexion";
+  $("dlg").close();toast("Repas ajouté à la liste partagée 🎉");$("meal-form").reset();$("fe").value="🍽️";
+  loadSheet();
+}
+async function confirmMealSaved(){
+  if(checkingSavedMeal||pendingAction!=="add"||!pendingMeal)return;
+  checkingSavedMeal=true;
+  for(let attempt=0;attempt<8&&pendingAction==="add";attempt++){
+    try{
+      const separator=SHEET_URL.includes("?")?"&":"?";
+      const response=await fetch(SHEET_URL+separator+"_="+Date.now(),{cache:"no-store"});
+      if(response.ok){
+        const latest=mealsFromCSV(await response.text());
+        const matching=latest.filter(meal=>sameMeal(meal,pendingMeal)).length;
+        if(matching>pendingBaselineCount){finishSavedMeal();return;}
+      }
+    }catch(e){}
+    await new Promise(resolve=>setTimeout(resolve,1200));
+  }
+  checkingSavedMeal=false;
+  if(pendingAction!=="add")return;
+  clearTimeout(pendingTimeout);pendingAction="";pendingRequestId="";pendingMeal=null;
+  $("save").disabled=false;$("save").textContent="Valider";
+  $("connection-check").disabled=false;$("connection-check").textContent="Tester la connexion";
+  toast("Le repas n’apparaît pas dans la liste partagée. Vérifie l’accès du compte Google à la feuille.");
+}
 $("connection-check").onclick=()=>{
   if(!SHEET_WRITE_URL){toast("La connexion d’enregistrement doit encore être configurée.");return;}
   const form=$("meal-form");pendingMeal=null;beginSheetRequest("healthcheck");form.action=SHEET_WRITE_URL;
@@ -288,6 +321,7 @@ $("meal-form").addEventListener("submit",event=>{
   const name=$("fn").value.trim(), emoji=$("fe").value.trim(), ingredients=$("fi").value.split(",").map(value=>value.trim()).filter(Boolean);
   if(!name||!emoji||!ingredients.length){toast("Renseigne le nom, l’emoji et au moins un ingrédient.");return;}
   pendingMeal={id:"pending-"+Date.now(),name,emoji,ing:ingredients};
+  pendingBaselineCount=meals.filter(meal=>sameMeal(meal,pendingMeal)).length;
   beginSheetRequest("add");
   const form=event.currentTarget;
   form.action=SHEET_WRITE_URL;
@@ -318,10 +352,18 @@ window.addEventListener("message",event=>handleSheetResponse(event.data));
 $("sheet-submit-frame").addEventListener("load",()=>{
   try{
     const responseUrl=new URL($("sheet-submit-frame").contentWindow.location.href);
-    if(responseUrl.origin!==location.origin||!responseUrl.hash.startsWith("#sheet-result="))return;
-    const data=JSON.parse(decodeURIComponent(responseUrl.hash.slice("#sheet-result=".length)));
-    handleSheetResponse(data);
+    if(responseUrl.origin===location.origin&&responseUrl.hash.startsWith("#sheet-result=")){
+      const data=JSON.parse(decodeURIComponent(responseUrl.hash.slice("#sheet-result=".length)));
+      if(data.ok&&data.requestId===pendingRequestId&&pendingAction==="add"){confirmMealSaved();return;}
+      handleSheetResponse(data);return;
+    }
   }catch(e){}
+  if(pendingAction==="healthcheck"){
+    clearTimeout(pendingTimeout);pendingAction="";pendingRequestId="";
+    $("save").disabled=false;$("save").textContent="Valider";
+    $("connection-check").disabled=false;$("connection-check").textContent="Tester la connexion";
+    toast("Réponse reçue de Google. Consulte les exécutions Apps Script pour le détail du test.");
+  }else if(pendingAction==="add")confirmMealSaved();
 });
 $("rand").onclick=()=>{
   const pool=visible().length?visible():meals;
